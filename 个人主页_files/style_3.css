@@ -1,0 +1,55 @@
+@charset "utf-8";
+
+body,html{font-family:"宋体";font-size:13px;line-height:22px;}
+
+/*盒子*/
+#container{margin:0px auto; position:relativel; width:1000px; text-align:left; background:#FFFFFF;}
+
+/*顶部*/
+#top{width:1000px; height:90px; background:url(../img/style_3/bg.jpg) repeat-x;}
+
+/*LOGO*/
+#logo{width:290px; height:80px; float:left;}
+
+/*搜索栏*/
+#search{width:600px; float:right; height:23px; line-height:23px; display:inline; margin:0px 0 0 0;}
+#search a{ color:#6666CC;}
+
+/*导航*/
+#lead_1{width:660px; float:left; position:relative; margin-top:10px; height:70px}
+#leader { position:absolute; bottom:0}
+#leader li { float:left;list-style-type:none; text-align:center; margin-left:1px;display:block; padding:0 10px; height:30px; line-height:30px; margin-left:0; }
+#leader li a { color:#000;text-decoration:none; font-weight:bolder;}
+#leader li a:hover{ text-decoration:underline;}
+#leader li a#current{font-weight:bolder;color:#FFFFD9;}
+
+/*中间*/
+#middle{width:1000px; clear:both;}
+
+/*底部*/
+#bottom{clear:both; margin-top:13px; padding-top:10px; width:1000px; font-family:Arial; color:#999999; background:url(../img/style_3/bottombg.jpg) repeat-x;}
+#bottom a{color:#999999;}
+
+/*拖动控件*/
+.mo{height:auto; margin-bottom:5px; background:#FFF;}
+.mo .drag{ height:20px; line-height:20px; padding:3px; color:#000; font-weight:bold;}
+.mo .nr{margin:2px; background:#FFF; padding:5px;}
+.mo .onclickDIV{ float:right; padding:3px; width:70px; height:24px;}
+
+/*可拖动DIV的按钮*/
+.dragBottom{float:right; cursor:pointer; font-size:150%; display:block;}
+.dragBottom img{width:16px;}
+#search .sitenameurl
+{
+
+    color: #333;
+    font-size: 16px;
+    font-weight: normal;
+    height: 26px;
+    line-height: 20px;
+    position: absolute;
+    text-align:left;
+	padding-left:4px;
+    width: 480px;
+    z-index: 1;
+}

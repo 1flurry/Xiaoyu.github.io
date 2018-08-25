@@ -1,0 +1,44 @@
+﻿@charset "utf-8";
+/* CSS Document */
+
+.os-win body,.os-win button,.os-win input,.os-win textarea,.os-win table{
+	font-family:Arial,"STHeiti Light","Microsoft Yahei",NSimSun,SimSun;
+	/* Arial,"华文细黑","STHeiti Light","微软雅黑体","Microsoft Yahei","新宋体",NSimSun,"宋体",SimSun */
+	font-size:14px;
+	line-height:1.42857143;
+}
+.os-mac body,.os-mac button,.os-mac input,.os-mac textarea,.os-mac a,.os-mac table{
+	font-family:Helvetica,Arial,sans-serif,"Heiti SC","STHeiti Light",STHeiti;
+	font-size:14px;
+	line-height:1.42857143;
+}
+.os-linux body,.os-linux button,.os-linux input,.os-linux textarea,.os-linux a,.os-linux table{
+	font-family:Helvetica,FreeSans,"Liberation Sans",Helmet,Arial,sans-serif,NSimSun,SimSun;
+	font-size:14px;
+	line-height:1.42857143;
+}
+html {font-family: sans-serif;-ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%}
+
+.tit36{font-size:36px;}
+.tit30{font-size:30px;}
+
+.tit22{font-size:22px;}
+
+.tit18{font-size:18px;}
+
+.tit16{font-size:16px;}
+
+.tit14{font-size:14px;}
+
+.os-win .a_more{font-size:12px;}
+
+.text14{font-size:14px;}
+.text12{font-size:12px;}
+.nav14{font-size:14px;line-height:14px;}
+
+
+
+
+
+
+
