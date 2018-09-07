@@ -1,76 +1,106 @@
+import _thread
+import time
+import sys
 import os
+#import log
+#import db_update
+import sqlite3
 import socket
-import signal
-import asyncio
-import aiohttp
-import threading
+import thread
+MAX_THR_NUM = 100
 
-def InitMaxClientNum():
-    buf = ""
-    with open("./maxclientnum.txt","r") as fd:
-        nBytes=fd.readlines()
-        for n in nBytes:
-            if int(n) < 0:
-                print("Data Error!(need > 0)")
-                return -1
-            return int(n)
-    
-def InitHost():
-    host = ""
-    with open("./host.txt","r") as fd:
-        n2 = fd.readlines()
-        for n in n2:
-            return n
+class FilePackage:
+    def __init__(self):
+        self.cmd = ''
+        self.filesize = 0
+        self.ack = 0
+        self.username = ''
+        self.filename = ''
+        #mode_t mode;        // 文件的权限
+        self.buf = ''
 
-def tcplink(sock, addr):
-    print('Accept new connection from ' ,addr)
-    sock.send(b'Welcome!')
-    '''while True:
-        data = sock.recv(1024)
-        time.sleep(1)
-        if not data or data.decode('utf-8') == 'exit':
-            break
-        sock.send(('Hello, %s!' % data.decode('utf-8')).encode('utf-8'))'''
-    sock.close()
-    print('Connection from %s closed.' % addr)
+class server:
+    def __init__(self):
+        self.cmd = ''
+        self.filesize = 0
+        self.ack = 0
+        self.username = ''
+        self.filename = ''
+        #mode_t mode;        // 文件的权限
+        self.buf = ''
 
-class MainThread:
-    def  __init__(self):
-        self.reuse = 1
-        self.i = 0
-        self.new_fd = 0
-        self.tempsocke_fd = 0
-        #soketlen_t clie_len
+    def InitMaxClientNum():
+        buf = ""
+        with open("./maxclientnum.txt","r") as fd:
+            nBytes=fd.readlines()
+            for n in nBytes:
+                if int(n) < 0:
+                    print("Data Error!(need > 0)")
+                    return -1
+                return int(n)
 
-    def server(self):
-        maxclientnum = InitMaxClientNum()
-        server_port = socket.htons(maxclientnum)
-        host = InitHost()
-        try:
-            socketfd = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
-            print(socketfd)
-        except:
-            print("Socket Build Error!")
-        else:
-            socketfd.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                socketfd.bind((host,9999))
-            except:
-                print("Sokcet Bind Error!")
+    #管理员身份认证模块
+    def CheckAdmin(id,pwd):
+        conn = sqlite3.connect('admin_db.db')
+        cursor = conn.execute("SELECT PASSWORD  from admin where ID = ?",[id])
+        for row in cursor:
+            if pwd == row[0]:
+                conn.close()
+                return 1
             else:
-                try:
-                    socketfd.listen(maxclientnum)
-                except:
-                    print("Socket Listen Error!")
-                else:
-                    print('Waiting for connection...')
-                    while True:
-                        # 接受一个新连接:
-                        sock, addr = socketfd.accept()
-                        # 创建新线程来处理TCP连接:
-                        t = threading.Thread(target=tcplink, args=(sock, addr))
-                        t.start()
+                conn.close()
+                return 0
+
+    #管理员登录模块
+    def login():
+        flag = 0
+        while flag != 1:
+            print("Admin Id:")
+            Adminid = input()
+            print("Admin Password")
+            Adminpwd = input()
+            res = server.CheckAdmin(int(Adminid),Adminpwd)
+            if res == 1:
+                flag = 1
+                print('login sucess!')
+            else:
+                print('login faile!')
+
+def Process(CurrentClientNum):
+    sendPackage = FilePackage()
+    CurrentClientNum = CurrentClientNum + 1
+    if CurrentClientNum > maxClientNum:
+        sendPackage = pack('L'," "," ",0,2,1,"")
+        CurrentClientNum = CurrentClientNum - 1
+        return 0
+    buff = FilePackage()
+    
+
+    
 
 if __name__ == '__main__':
-    test = MainThread()
+    maxClientNum = server.InitMaxClientNum()
+    CurrentClientNum = 0
+    print('Max Client Number is',maxClientNum)
+    server.login()
+    test = thread.MainThread()
     test.server()
+
+    
+'''
+def print_time( threadName, delay):
+    count = 0
+    while count < 5:
+        time.sleep(delay)
+        count += 1
+        print ("%s: %s" % ( threadName, time.ctime(time.time()) ))
+
+try:
+	#界面线程
+    _thread.start_new_thread( print_time, ("ControId", 2, ) )
+    #处理数据线程
+    _thread.start_new_thread( print_time, ("Thread-2", 4, ) )
+except:
+    print ("Error: 无法启动线程")
+'''
+
