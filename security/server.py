@@ -4,6 +4,7 @@ import signal
 import asyncio
 import aiohttp
 import threading
+import time
 
 def InitMaxClientNum():
     buf = ""
@@ -25,12 +26,12 @@ def InitHost():
 def tcplink(sock, addr):
     print('Accept new connection from ' ,addr)
     sock.send(b'Welcome!')
-    '''while True:
+    while True:
         data = sock.recv(1024)
         time.sleep(1)
         if not data or data.decode('utf-8') == 'exit':
             break
-        sock.send(('Hello, %s!' % data.decode('utf-8')).encode('utf-8'))'''
+        sock.send(('Hello, %s!' % data.decode('utf-8')).encode('utf-8'))
     sock.close()
     print('Connection from %s closed.' % addr)
 
@@ -70,7 +71,8 @@ class MainThread:
                         # 创建新线程来处理TCP连接:
                         t = threading.Thread(target=tcplink, args=(sock, addr))
                         t.start()
-
+'''
 if __name__ == '__main__':
     test = MainThread()
     test.server()
+    '''
