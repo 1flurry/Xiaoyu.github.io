@@ -129,12 +129,9 @@ class FileClient():
         ret = self.struct_pack()
         
         try:
-            host = InitHost()
-            server_port = 9999
-            #self.ClientLink()
-            s = self.context.wrap_socket(self.sock, server_hostname=host)
+            s = self.s
             s.send(ret)
-            recv = s.recv(struct.calcsize(dataFormat))
+            recv = s.recv(struct.calcsize(self.dataFormat))
             self.struct_unpack(recv)
             if self.action.startswith("ok"):
                 if os.path.isdir(clientfilePath):
@@ -173,5 +170,5 @@ class FileClient():
 if __name__ == '__main__':
     fileclient = FileClient()
     fileclient.CheckUsers("1","123456")
-    fileclient.SendFile('./client_data/test.txt','./server_data')
-    #fileclient.RecvFile('./client_data/','./server_data/test2.txt')
+    #fileclient.SendFile('./client_data/test.txt','./server_data')
+    fileclient.RecvFile('./client_data/','./server_data/test2.txt')
