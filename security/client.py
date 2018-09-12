@@ -1,8 +1,8 @@
 import socket
-import server_client
 import hashlib
 import os
 import struct
+import ssl,argparse
 
 def InitHost():
     host = ""
@@ -11,7 +11,10 @@ def InitHost():
         for n in n2:
             return n
 
-dataFormat='8s32s100s100sl'
+
+
+
+
 
 class FileClient():
     def __init__(self):
@@ -21,19 +24,42 @@ class FileClient():
         self.clientfilePath = ''
         self.serverfilePath = ''
         self.size = 0
+        self.cafile = "./cert/ca.crt"
+        self.host = InitHost()
+        self.server_port = 9999
+        self.dataFormat='20s20s8s32s100s100sl'
 
     def struct_pack(self):
-        ret = struct.pack(dataFormat,self.action.encode(),self.md5sum.encode(),self.clientfilePath.encode(),
-                          self.serverfilePath.encode(),self.size)
+        ret = struct.pack(self.dataFormat, self.username.encode(), self.pwd.encode(), self.action.encode(), self.md5sum.encode(), self.clientfilePath.encode(),
+                          self.serverfilePath.encode(), self.size)
         return ret
 
     def struct_unpack(self,package):
-        self.action,self.md5sum,self.clientfilePath,self.serverfilePath,self.size = struct.unpack(dataFormat,package)
+        self.username, self.pwd, self.action, self.md5sum, self.clientfilePath, self.serverfilePath, self.size = struct.unpack(self.dataFormat, package)
+        self.username = self.username.decode().strip('\x00')
+        self.pwd = self.pwd.decode().strip('\x00')
         self.action = self.action.decode().strip('\x00')
         self.md5sum = self.md5sum.decode().strip('\x00')
         self.clientfilePath = self.clientfilePath.decode().strip('\x00')
         self.serverfilePath = self.serverfilePath.decode().strip('\x00')
     
+    def CheckUsers(self,name,pwd):
+        self.ClientLink()
+        
+        self.username = name
+        self.pwd = pwd
+        ret = self.struct_pack()
+        self.s.send(ret)
+        recv = self.s.recv(1024)
+        if recv.decode() == '0':
+            print("id or pwd error!")
+            return 0
+        else:
+            filelist = self.s.recv(1024).decode().split(",")
+            print(filelist)
+            return 1
+
+
     def GetMD5(self,filepath):
         fd = open(filepath,"r")
         fcont = fd.readlines()
@@ -41,6 +67,15 @@ class FileClient():
         fmd5 = hashlib.md5(str(fcont).encode("utf-8"))
         return fmd5.hexdigest()    
         
+    def ClientLink(self):
+        purpose = ssl.Purpose.SERVER_AUTH
+        self.context = ssl.create_default_context(purpose, cafile=self.cafile)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        host = InitHost()
+        server_port = 9999
+        self.sock.connect((host, server_port))
+        self.s = self.context.wrap_socket(self.sock, server_hostname=self.host)
+
     def SendFile(self,clientfilePath,serverfilePath):
         if not os.path.exists(clientfilePath):
             print('源文件/文件夹不存在')
@@ -51,11 +86,11 @@ class FileClient():
         self.serverfilePath = os.path.basename(serverfilePath)
         self.clientfilePath = os.path.basename(clientfilePath)
         ret = self.struct_pack()
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        
         try:
-            host = InitHost()
-            server_port = 9999
-            s.connect((host, server_port))
+            #self.ClientLink()
+            s = self.s
             s.send(ret)
             recv = s.recv(1024)
             if recv.decode() == 'dirNotExist':
@@ -89,14 +124,15 @@ class FileClient():
             print('本地目标文件/文件夹不存在')
             return "No such file or directory"
         self.action = 'download'
-        self.serverfilePath = os.path.basename(filePath)
-        self.clientfilePath = os.path.basename(clientfilePath)
+        self.serverfilePath = serverfilePath
+        self.clientfilePath = clientfilePath
         ret = self.struct_pack()
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
         try:
             host = InitHost()
             server_port = 9999
-            s.connect((host, server_port))
+            #self.ClientLink()
+            s = self.context.wrap_socket(self.sock, server_hostname=host)
             s.send(ret)
             recv = s.recv(struct.calcsize(dataFormat))
             self.struct_unpack(recv)
@@ -105,7 +141,7 @@ class FileClient():
                     fileName = (os.path.split(serverfilePath))[1]
                     clientfile = os.path.join(clientfilePath, fileName)
                 self.recvd_size = 0
-                file = open(clientfilePath, 'wb')
+                file = open(clientfile, 'wb')
                 while not self.recvd_size == self.size:
                     if self.size - self.recvd_size > 1024:
                         rdata = s.recv(1024)
@@ -116,7 +152,7 @@ class FileClient():
                     file.write(rdata)
                 file.close()
                 print('\n等待校验...')
-                output = self.GetMD5(clientfilePath)
+                output = self.GetMD5(clientfile)
                 if output == self.md5sum:
                     print("文件传输成功")
                 else:
@@ -136,5 +172,6 @@ class FileClient():
 
 if __name__ == '__main__':
     fileclient = FileClient()
+    fileclient.CheckUsers("1","123456")
     fileclient.SendFile('./client_data/test.txt','./server_data')
-    fileclient.RecvFile('./client_data/','./server_data/test2.txt')
+    #fileclient.RecvFile('./client_data/','./server_data/test2.txt')
