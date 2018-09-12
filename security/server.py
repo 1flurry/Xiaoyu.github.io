@@ -3,8 +3,9 @@ import socket
 import hashlib
 import threading
 import time
-import server_file
 import struct
+import ssl
+import sqlite3
 
 def InitMaxClientNum():
     buf = ""
@@ -40,20 +41,57 @@ def tcplink(sock, addr):
 
 class FileServer:
     def __init__(self):
-        self.dataFormat = '8s32s100s100sl'
+        self.dataFormat = '20s20s8s32s100s100sl'
+        self.cafile = "./cert/ca.crt"
+        self.certfile = "./cert/server.pem"
         #soketlen_t clie_len
 
     def struct_pack(self):
-        ret = struct.pack(self.dataFormat, self.action.encode(), self.md5sum.encode(), self.clientfilePath.encode(),
+        ret = struct.pack(self.dataFormat, self.username.encode(), self.pwd.encode(), self.action.encode(), self.md5sum.encode(), self.clientfilePath.encode(),
                           self.serverfilePath.encode(), self.size)
         return ret
  
     def struct_unpack(self, package):
-        self.action, self.md5sum, self.clientfilePath, self.serverfilePath, self.size = struct.unpack(self.dataFormat, package)
+        self.username, self.pwd, self.action, self.md5sum, self.clientfilePath, self.serverfilePath, self.size = struct.unpack(self.dataFormat, package)
+        self.username = self.username.decode().strip('\x00')
+        self.pwd = self.pwd.decode().strip('\x00')
         self.action = self.action.decode().strip('\x00')
         self.md5sum = self.md5sum.decode().strip('\x00')
         self.clientfilePath = self.clientfilePath.decode().strip('\x00')
         self.serverfilePath = self.serverfilePath.decode().strip('\x00')
+
+    def CheckUsers(self,sock,addr):
+        fileinfo_size = struct.calcsize(self.dataFormat)
+        self.buf = sock.recv(fileinfo_size)
+        if self.buf:
+            self.struct_unpack(self.buf)
+        name = self.username
+        pwd = self.pwd
+        print(name,pwd)
+
+        conn   = sqlite3.connect('admin_db.db')
+        print ("Opened database successfully")
+        cursor = conn.execute("SELECT PASSWORD from admin where ID = ?",list(name))
+        for row in cursor:
+            if pwd == row[0]:
+                sock.send(b'1')
+                filelist = self.GetFileList()
+                sock.send(filelist.encode())
+                self.FileSave(sock, addr)
+
+            else:
+                sock.send(b'0')
+                print("error")
+                '''
+                sock.close()
+                print('Connection from {0} closed.'.format(addr))
+                conn.close()
+                '''
+                return 0
+
+    def GetFileList(self):
+        files= os.listdir("./server_data")
+        return ",".join(files)
 
     def GetMD5(self,filepath):
         fd = open(filepath,"r")
@@ -61,7 +99,6 @@ class FileServer:
         fd.close()
         fmd5 = hashlib.md5(str(fcont).encode("utf-8"))
         return fmd5.hexdigest()    
-
 
     def FileSave(self,sock,addr):
         print ('Accept new connection from {0}'.format(addr))
@@ -71,6 +108,7 @@ class FileServer:
             if self.buf:
                 self.struct_unpack(self.buf)
                 print(self.action)
+
                 if self.action.startswith("upload"):
                     if os.path.isdir(self.serverfilePath):
                         fileName = (os.path.split(self.clientfilePath))[1]
@@ -96,8 +134,11 @@ class FileServer:
                             sock.send(str.encode('ok'))
                         else:
                             sock.send(str.encode('md5sum error'))
+
                 elif self.action.startswith("download"):
-                    if os.path.exists(self.serverfilePath):
+                    filePath,fileName = os.path.split(self.serverfilePath)
+                    print(self.serverfilePath)
+                    if os.path.exists(filePath):
                         self.md5sum = self.GetMD5(self.serverfilePath)
                         self.action = 'ok'
                         self.size = os.stat(self.serverfilePath).st_size
@@ -114,6 +155,7 @@ class FileServer:
                         self.action = 'nofile'
                         ret = self.struct_pack()
                         sock.send(ret)
+            
             sock.close()
             print('Connection from {0} closed.'.format(addr))
             break
@@ -123,6 +165,11 @@ class FileServer:
         maxclientnum = InitMaxClientNum()
         server_port = 9999
         host = InitHost()
+
+        purpose = ssl.Purpose.CLIENT_AUTH
+        context = ssl.create_default_context(purpose, cafile=self.cafile)
+        context.load_cert_chain(self.certfile)
+
         try:
             socketfd = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
             print(socketfd)
@@ -144,13 +191,15 @@ class FileServer:
                     while True:
                         # 接受一个新连接:
                         sock, addr = socketfd.accept()
-                        # 创建新线程来处理TCP连接:
-                        t = threading.Thread(target=self.FileSave, args=(sock, addr))
-                        t.start()
 
+                        ssl_sock = context.wrap_socket(sock, server_side=True)
+                        t1 = threading.Thread(target=self.CheckUsers, args=(ssl_sock, addr))
+                        t1.start()
+                        
 
 
 
 if __name__ == '__main__':
     test = FileServer()
     test.server()
+    #test.server()
