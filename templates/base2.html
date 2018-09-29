@@ -1,0 +1,54 @@
+{% extends "bootstrap/base.html" %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block head %}
+{{ super() }}
+
+<link rel="icon" href="/static/images/1.ico" type="image/x-icon"> 
+<link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap-theme.css" rel="stylesheet">
+{% endblock %}
+
+{% block navbar %}
+<div class="navbar navbar-inverse" role="navigation">
+    <div class="container-fluid">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle"
+             data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="/">Xiaoyu Zhu</a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li><a href="/">Home</a></li>
+                <li><a href="/about">About</a></li>
+                <li><a href="#Blog" data-toggle="tab">Blog</a></li>
+                <li><a href="#Link" data-toggle="tab">Link</a></li>
+            </ul>
+            <div class="tab-content">
+                <div class="tab-pane" id="Blog">blogpage</div>
+                <div class="tab-pane" id="Link">LinkPage</div>
+            </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">  
+    <div class="row-fluid">    
+        <div class="span2">      
+            Sidebar content    
+        </div>    
+        <div class="span10">      
+            Body content    
+        </div>  
+    </div>
+</div>
+
+{% endblock %}
