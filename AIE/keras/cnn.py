@@ -1,236 +1,168 @@
-import pymysql
-import math
-import json
-import configs as C
-import time,datetime
-#R = C.DATA_MYSQL
-R = {'host': "localhost", 'user': "root", 'password': "123456", 'database': "AIE_Detect_Result"}
+# coding: utf-8
 
-db = pymysql.connect(host=R['host'], user=R['user'], passwd=R['password'], db=R['database'],\
-	charset = 'utf8',cursorclass = pymysql.cursors.DictCursor)
+import numpy as np
+import tldextract
+import keras
 
-#获取威胁信息
-def get_detect_result(type,current_page,page_size,beginTime,endTime):
-    threat_type_dic = {
-    "00000":"common",              #输出全部
-    "10000":"abnormal_file",       #异常文件检测
-    "20000":"bruteforce",          #暴力破解
-    "30000":"cc_flow",             #CC通信
-    "40000":"webshell",            #webshell
-    "50000":"eca",                 #异常加密通信
-    "60000":"dns_tunnel",          #DNS tunnel
-    "70000":"dga" }                #DGA域名检测
-    threat_type_change = {
-    "abnormal_file" : "10000",       #异常文件检测
-    "bruteforce" : "20000",           #暴力破解
-    "cc_flow" : "30000",             #CC通信
-    "webshell" : "40000",            #webshell
-    "eca" : "50000",                 #异常加密通信
-    "dns_tunnel" : "60000",          #DNS tunnel
-    "dga" : "70000" }                #DGA域名检测
-    threat_type = threat_type_dic[type.decode('utf-8')]
-    cursor = db.cursor()
-    beginTime = time.strftime("%Y-%m-%d %H:%M:%S",time.gmtime(beginTime))
-    endTime = time.strftime("%Y-%m-%d %H:%M:%S",time.gmtime(endTime))
-    try:
-        cursor.execute("SELECT COUNT(id) as num from AIE_Detect_Result where threat_type = '%s' and time_start <= '%s' and time_start >= '%s'" % (threat_type,endTime,beginTime))
-        data_num = cursor.fetchone()['num']#数据总数
-    except:
-        return [], 0, '4'
-    try:
-        total = int(math.ceil(data_num/page_size)) #总页数
-        if total == 0: 
-            return [], 0, '6'
-        offset = (current_page-1)*page_size
-    except:
-        return [], 0, '1'
-    try:
-        cursor.execute("SELECT * from AIE_Detect_Result where threat_type = '%s' limit %d offset %d" % (threat_type,page_size,offset))
-        data = cursor.fetchall()
-    except:
-        return [], 0, '4'
-    try:
-        items = []
-        for el in data:
-            el['threat_type'] = threat_type_change[str(el['threat_type'])]
-            if el['time_start'] == None:
-                el.update({"AttackType":el['threat_type'],
-                           "AlarmLevel":el['threat_level'],
-                           #"AttackSubType":"10001",
-                           "AlarmTime":el['time_start'],
-                           "SrcIP":el['sip'],
-                           "DestIP":el['dip'],
-                           "SrcPort":el['sport'],
-                           "DestPort":el['dport']})
-                el.pop("threat_type")
-                el.pop("threat_level")
-                el.pop("time_start")
-                el.pop("sip")
-                el.pop("dip")
-                el.pop("sport")
-                el.pop("dport")          
-                items.append(el)
-            else:
-                el.update({"AttackType":el['threat_type'],
-                           "AlarmLevel":el['threat_level'],
-                           #"AttackSubType":"10001",
-                           "AlarmTime":el['time_start'].strftime("%Y-%m-%d %H:%M:%S"),
-                           "SrcIP":el['sip'],
-                           "DestIP":el['dip'],
-                           "SrcPort":el['sport'],
-                           "DestPort":el['dport']})
-                el.pop("threat_type")
-                el.pop("threat_level")
-                el.pop("time_start")
-                el.pop("sip")
-                el.pop("dip")
-                el.pop("sport")
-                el.pop("dport")          
-                items.append(el)
-    except:
-        return [], 0, '1'
-    return items, total, '0'
+from keras.preprocessing import sequence
+from keras.models import Sequential
+from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.embeddings import Embedding
+from keras.layers.recurrent import LSTM,GRU
 
-def get_all_result(current_page,page_size):
-    threat_type_change = {
-    "abnormal_file" : "10000",       #异常文件检测
-    "bruteforce" : "20000",           #暴力破解
-    "cc_flow" : "30000",             #CC通信
-    "webshell" : "40000",            #webshell
-    "eca" : "50000",                 #异常加密通信
-    "dns_tunnel" : "60000",          #DNS tunnel
-    "dga" : "70000" }                #DGA域名检测
-    cursor = db.cursor()
-    try:
-        cursor.execute("SELECT COUNT(id) as num from AIE_Detect_Result")
-        data_num = cursor.fetchone()['num']#数据总数
-    except:
-        return [], 0, '4'
-    try:
-        total = int(math.ceil(data_num/page_size)) #总页数
-        print(total)
-        if total == 0: 
-            return [], 0, '6'
-        offset = (current_page - 1)*page_size
-    except:
-        return [], 0, '1'
-    try:
-        cursor.execute("SELECT * from AIE_Detect_Result limit %d offset %d" % (page_size,offset))
-        data = cursor.fetchall()
-    except:
-        return [], 0, '4'
-    try:
-        items = []
-        for el in data:
-            el['threat_type'] = threat_type_change[str(el['threat_type'])]
-            #转换数据库字段
-            if el['time_start'] == None:
-                el.update({"AttackType":el['threat_type'],
-                           "AlarmLevel":el['threat_level'],
-                           #"AttackSubType":"10001",
-                           "AlarmTime":el['time_start'],
-                           "SrcIP":el['sip'],
-                           "DestIP":el['dip'],
-                           "SrcPort":el['sport'],
-                           "DestPort":el['dport']})
-                el.pop("threat_type")
-                el.pop("threat_level")
-                el.pop("time_start")
-                el.pop("sip")
-                el.pop("dip")
-                el.pop("sport")
-                el.pop("dport")          
-                items.append(el)
-            else:
-                el.update({"AttackType":el['threat_type'],
-                           "AlarmLevel":el['threat_level'],
-                           #"AttackSubType":"10001",
-                           "AlarmTime":el['time_start'].strftime("%Y-%m-%d %H:%M:%S"),
-                           "SrcIP":el['sip'],
-                           "DestIP":el['dip'],
-                           "SrcPort":el['sport'],
-                           "DestPort":el['dport']})
-                el.pop("threat_type")
-                el.pop("threat_level")
-                el.pop("time_start")
-                el.pop("sip")
-                el.pop("dip")
-                el.pop("sport")
-                el.pop("dport")          
-                items.append(el)
-    except:
-        return [], 0, '1'
-    return items, total, '0'
+from keras.layers import  Bidirectional
 
-def get_algorithms_type_num():
-    cursor = db.cursor()
-    threat_type_dic = {
-    "abnormal_file" : "10000",       #异常文件检测
-    "brutefoce" : "20000",           #暴力破解
-    "cc_flow" : "30000",             #CC通信
-    "webshell" : "40000",            #webshell
-    "eca" : "50000",                 #异常加密通信
-    "dns_tunnel" : "60000",          #DNS tunnel
-    "dga" : "70000" }                #DGA域名检测
-    threat_type_num = []
-    for threat_type in threat_type_dic:
-        sql = "SELECT COUNT(id) FROM AIE_Detect_Result WHERE threat_type = '%s'" %(threat_type)
-        cursor.execute(sql)
-        num = cursor.fetchone()
-        num_dic = {"key" : threat_type_dic[threat_type], "doc_count" : num["COUNT(id)"]}
-        threat_type_num.append(num_dic)
-    return threat_type_num
-
-def get_algorithms_level_num():
-    cursor = db.cursor()
-    threat_level_dic = {
-    1 : "1",            #很低
-    2 : "2",            #低
-    3 : "3",            #中
-    4 : "4",            #高
-    5 : "5"}            #很高
-    threat_level_num = []
-    for threat_level in threat_level_dic:
-        sql = "SELECT COUNT(id) FROM AIE_Detect_Result WHERE threat_level = '%d'" %(threat_level)
-        cursor.execute(sql)
-        num = cursor.fetchone()
-        num_dic = {"key" : threat_level_dic[threat_level], "doc_count" : num["COUNT(id)"]}
-        threat_level_num.append(num_dic)
-    return threat_level_num
-
-if __name__ == '__main__':
-    try:
-        threat_type = str("10000").encode("utf-8")
-        current_page = int("1")
-        page_size = int("20")
-    except:
-        items = []
-        total = 0
-        resultCode = '5'
-    else:
-        #items, total, resultCode = get_all_result(current_page,page_size)
-        items, total, resultCode= get_detect_result(threat_type,current_page,page_size)
+import sklearn
+from sklearn.cross_validation import train_test_split
+import sys
+'''   
+def pad(dat, length=31, item=0):
+    dat.extend((length-len(dat))*[item])
+    return dat
     
-    rstJson = {
-    "resultCode":resultCode,
-    "errDesc":"",
-    "totalCount":total,
-	"data":items
-	}
-    try:
-        json_data = json.dumps(rstJson)
-    except:
-        items = []
-        total = 0
-        resultCode = '5'
-        rstJson = {
-        "resultCode":resultCode,
-        "errDesc":"",
-        "totalCount":total,
-        "data":items
-        }
-        json_data = json.dumps(rstJson)
-    #return json_data
-    print(json_data)
+def domain2list(domain):
+    diction = {'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8,'i':9,'j':10,'k':11,'l':12,'m':13,'n':14,'o':15,'p':16,'q':17,'r':18,'s':19,'t':20,'u':21,'v':22,'w':23,'x':24,'y':25,'z':26,'0':27,'1':28,'2':29,'3':30,'4':31,'5':32,'6':33,'7':34,'8':35,'9':36,'-':37}
+    data=[diction.get(x,38) for x in domain]
+    return pad(data)
 
+def makeData(black="./data/dga.txt",white="./data/top-1m.csv"):
+    X = []
+    Y = []
+    no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
+    with open(black,'r') as f:
+        data=f.readlines()
+        for i in data:
+            X.append(domain2list(no_fetch_extract(i.strip()).domain))
+            Y.append(1)
+    with open("./data/top-1m.csv",'r') as f:
+        data=f.readlines()
+        for i in data:
+            X.append(domain2list(no_fetch_extract(i.strip().split(',')[1]).domain))
+            Y.append(0)
+
+    X=np.mat(X)
+    Y=np.mat(Y)
+    return X,Y.T
+'''
+def pad(dat, length=31, item=0):
+    if len(dat)>length:
+        dat=dat[0:length]
+    else:
+        dat.extend((length-len(dat))*[item])
+    return dat
+def domain2list(domain):
+    diction = {'a':1,'b':2,'c':3,'d':4,'e':5,'f':6,'g':7,'h':8,'i':9,'j':10,'k':11,'l':12,'m':13,'n':14,'o':15,'p':16,'q':17,'r':18,'s':19,'t':20,'u':21,'v':22,'w':23,'x':24,'y':25,'z':26,'0':27,'1':28,'2':29,'3':30,'4':31,'5':32,'6':33,'7':34,'8':35,'9':36,'-':37}
+    data=[diction.get(x,38) for x in domain]
+    return pad(data)
+def makeData(black="./data/dga.txt",white="./data/top-1m.csv"):
+    X = []
+    Y = []
+    no_fetch_extract = tldextract.TLDExtract(suffix_list_urls=None)
+    with open(black,'r') as f:
+        data=f.readlines()
+        for i in data:
+            X.append(domain2list(no_fetch_extract(i.strip()).domain))
+            Y.append([0])
+    with open("./data/top-1m.csv",'r') as f:
+        data=f.readlines()
+        for i in data:
+            X.append(domain2list(no_fetch_extract(i.strip().split(',')[1]).domain))
+            Y.append([1])
+    X=np.mat(X)
+    Y=np.mat(Y)
+    return X,Y
+"""
+def build_model(max_features, maxlen):
+    #双向""Build bi-GRU model""
+    # 定义顺序模型
+    model = Sequential()
+    model.add(Embedding(max_features, 
+                        32, #输出维度
+                        input_length=maxlen))
+    model.add(Bidirectional(GRU(16)))
+    model.add(Dropout(0.25)) #断开神经元的概率，防止过拟合
+    model.add(Dense(16,activation="relu")) #int 输出维度
+    model.add(Dense(1)) #int 输出维度
+    model.add(Activation('sigmoid'))
+    keras.optimizers.RMSprop(lr=0.001, rho=0.9, epsilon=None, decay=0.0)                        
+    model.compile(loss='binary_crossentropy',
+                  optimizer='rmsprop',
+                  metrics=['accuracy'])
+    
+    return model
+"""
+
+from keras.layers import Conv1D, MaxPooling1D,Flatten
+def build_model(max_features, maxlen):
+    """Build cnn model"""
+    model = Sequential()
+    model.add(Embedding(max_features, 
+                        4, #输出维度
+                        input_length=maxlen))
+    model.add(Conv1D(filters, kernel_size))
+    model.add(Conv1D(16,3))
+    model.add(MaxPooling1D(2))
+    model.add(Conv1D(16,3))
+    model.add(MaxPooling1D(2))
+    model.add(Flatten())
+    model.add(Dropout(0.25))
+    model.add(Dense(16))
+    model.add(Dense(1))
+    model.add(Activation('sigmoid'))
+
+    model.compile(loss='binary_crossentropy',
+                  optimizer='rmsprop',
+                 metrics=['accuracy'])
+
+    return model
+
+
+import time
+
+timestamp=time.strftime("%Y%m%d-%H%M%S", time.localtime(time.time()))
+print('Get data...')
+X,Y=makeData()
+X_train, X_test, y_train, y_test = train_test_split(X,Y, test_size=0.1)
+del X,Y
+print(X_train.shape)
+print(y_train.shape)
+print(X_test.shape)
+print(y_test.shape)
+
+
+print('Build model...')
+
+max_features=39
+maxlen=31
+model = build_model(max_features, maxlen)
+#plot_model(model, to_file='model.png',show_shapes=True)
+model.summary()
+
+
+batch_size=512
+print('Training start...')
+model.fit(X_train, y_train, #训练集
+          validation_data=(X_test, y_test), #验证集
+          batch_size=batch_size,
+          verbose=1, # 进度条显示
+          epochs=1) # 迭代次数
+print('Training Done!')
+
+
+
+fileprefix="bigru"
+model.save(fileprefix+".krs")
+
+
+# In[8]:
+
+
+test_dat = X_test[:]
+print(test_dat.shape)
+starts=time.time()
+results=model.predict_classes(test_dat,batch_size=512)
+timecost=time.time()-starts
+print(test_dat.shape[0],"items")
+print(timecost,"seconds")
+print(test_dat.shape[0]/timecost,"-eps")
 
